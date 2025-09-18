@@ -466,7 +466,7 @@
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'user' } // 'user'是前置鏡頭, 'environment'是後置
+                        video: { facingMode: 'environment' } // 'user'是前置鏡頭, 'environment'是後置
                     });
                     video.srcObject = stream;
                     video.onloadedmetadata = () => {
@@ -521,4 +521,5 @@
     </script>
 </body>
 </html>
+
 
