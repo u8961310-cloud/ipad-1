@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>魔法相機小學堂</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: none; /* 防止在行動裝置上拖曳時滾動頁面 */
+        }
+        .game-screen {
+            background: linear-gradient(135deg, #a0e9ff 0%, #a1c4fd 100%);
+        }
+        .firefly {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 0, 0.3);
+            position: absolute;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+            cursor: pointer;
+        }
+        .firefly.lit {
+            background-color: yellow;
+            box-shadow: 0 0 20px yellow, 0 0 30px yellow;
+            transform: scale(1.2);
+        }
+        #seed {
+            cursor: grab;
+            transition: transform 0.2s;
+        }
+        #seed:active {
+            cursor: grabbing;
+            transform: scale(1.2);
+        }
+        #flower-pot {
+            transition: background 0.3s;
+        }
+        #flower-pot.hovered {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        #flower {
+            transform-origin: bottom center;
+            transform: scale(0);
+            transition: transform 1s ease-out;
+        }
+        #flower.grown {
+            transform: scale(1);
+        }
+        .instruction-bubble {
+            background: white;
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 3px solid #fde047; /* yellow-300 */
+        }
+        .instruction-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            width: 0;
+            height: 0;
+            border: 20px solid transparent;
+            border-top-color: white;
+            border-bottom: 0;
+            margin-left: -20px;
+            margin-bottom: -20px;
+        }
+        /* 相機畫面 */
+        #camera-view {
+            position: relative;
+            background-color: #000;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* 鏡像翻轉，像照鏡子一樣 */
+        }
+        #color-progress-bar {
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen overflow-hidden bg-gray-100 flex items-center justify-center">
+
+    <div id="game-container" class="w-full h-full max-w-screen-lg max-h-[1024px] bg-white shadow-2xl relative overflow-hidden">
+
+        <!-- 開始畫面 -->
+        <div id="start-screen" class="game-screen w-full h-full flex flex-col items-center justify-center text-center p-8">
+            <h1 class="text-5xl md:text-7xl font-bold text-white text-shadow mb-4">魔法相機小學堂</h1>
+            <p class="text-2xl md:text-3xl text-gray-800 mb-8">準備好成為魔法學徒了嗎？</p>
+            <button id="start-button" class="px-12 py-6 bg-yellow-400 text-white text-3xl font-bold rounded-full shadow-lg transform hover:scale-105 transition-transform">開始遊戲</button>
+        </div>
+
+        <!-- 遊戲主畫面 (多個關卡共用) -->
+        <div id="game-main-screen" class="game-screen w-full h-full hidden flex-col">
+            <!-- 博士貓頭鷹指導區 -->
+            <div id="instruction-area" class="w-full p-4 flex items-center gap-4 z-10">
+                <div class="w-24 h-24 md:w-32 md:h-32 flex-shrink-0">
+                    <!-- 貓頭鷹 SVG -->
+                    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M50 99.5C77.34 99.5 99.5 77.34 99.5 50C99.5 22.66 77.34 0.5 50 0.5C22.66 0.5 0.5 22.66 0.5 50C0.5 77.34 22.66 99.5 50 99.5Z" fill="#A0522D" stroke="#653412" stroke-width="1"/><path d="M50 78.5C65.732 78.5 78.5 65.732 78.5 50C78.5 34.268 65.732 21.5 50 21.5C34.268 21.5 21.5 34.268 21.5 50C21.5 65.732 34.268 78.5 50 78.5Z" fill="#F5DEB3" stroke="#653412" stroke-width="1"/><path d="M38.5 55C42.0899 55 45 52.0899 45 48.5C45 44.9101 42.0899 42 38.5 42C34.9101 42 32 44.9101 32 48.5C32 52.0899 34.9101 55 38.5 55Z" fill="black"/><path d="M61.5 55C65.0899 55 68 52.0899 68 48.5C68 44.9101 65.0899 42 61.5 42C57.9101 42 55 44.9101 55 48.5C55 52.0899 57.9101 55 61.5 55Z" fill="black"/><path d="M46 62L50 68L54 62H46Z" fill="#FFA500" stroke="#653412" stroke-width="1"/><path d="M25 25L15 15" stroke="#653412" stroke-width="3" stroke-linecap="round"/><path d="M75 25L85 15" stroke="#653412" stroke-width="3" stroke-linecap="round"/></svg>
+                </div>
+                <div class="relative flex-grow">
+                    <div class="instruction-bubble">
+                        <p id="instruction-text" class="text-xl md:text-2xl text-gray-800 font-bold"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 遊戲內容區域 -->
+            <div id="level-content" class="flex-grow w-full relative">
+                <!-- 關卡 1-1: 點點螢火蟲 -->
+                <div id="level-1-1" class="w-full h-full hidden" style="background: url('https://placehold.co/1024x768/001f3f/FFFFFF?text=夜空背景') center/cover;"></div>
+
+                <!-- 關卡 1-2: 幫小種子回家 -->
+                <div id="level-1-2" class="w-full h-full hidden flex flex-col md:flex-row items-center justify-around p-8">
+                    <div id="seed-area" class="w-1/3 text-center">
+                        <div id="seed" class="inline-block text-7xl transform transition-transform duration-200">🌱</div>
+                    </div>
+                    <div id="pot-area" class="w-1/3 text-center relative">
+                        <div id="flower-pot" class="w-48 h-48 bg-orange-200 border-4 border-orange-400 rounded-t-full rounded-b-lg flex items-center justify-center mx-auto">
+                            <div id="flower" class="text-9xl">🌸</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 關卡 2-1: 尋找黃色能量 -->
+                <div id="level-2-1" class="w-full h-full hidden flex-col items-center justify-center p-4 bg-gray-800">
+                    <div id="camera-view" class="w-full h-4/5 md:w-3/4 md:h-3/4 rounded-lg overflow-hidden shadow-lg mb-4">
+                        <video id="video" playsinline autoplay></video>
+                        <canvas id="canvas" class="hidden"></canvas>
+                        <!-- 顏色提示 -->
+                        <div class="absolute top-4 left-4 p-4 rounded-full bg-yellow-400 border-4 border-white"></div>
+                    </div>
+                     <div class="w-full md:w-3/4">
+                        <div id="color-progress-container" class="w-full bg-gray-200 rounded-full h-8 dark:bg-gray-700">
+                            <div id="color-progress-bar" class="bg-yellow-400 h-8 rounded-full text-right pr-2 text-black font-bold"></div>
+                        </div>
+                    </div>
+                    <button id="camera-permission-button" class="mt-4 px-6 py-3 bg-blue-500 text-white rounded-lg hidden">開啟相機</button>
+                    <p id="camera-error" class="text-white mt-4 hidden">無法開啟相機，請檢查權限喔！</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 關卡完成畫面 -->
+        <div id="level-complete-screen" class="game-screen w-full h-full hidden flex-col items-center justify-center text-center p-8">
+            <div class="text-9xl animate-bounce">🏆</div>
+            <h2 id="complete-title" class="text-4xl md:text-6xl font-bold text-white my-4">太棒了！</h2>
+            <p id="complete-message" class="text-xl md:text-2xl text-gray-800 mb-8"></p>
+            <button id="next-level-button" class="px-10 py-5 bg-green-500 text-white text-2xl font-bold rounded-full shadow-lg transform hover:scale-105 transition-transform">下一關</button>
+        </div>
+
+    </div>
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const gameMainScreen = document.getElementById('game-main-screen');
+        const levelCompleteScreen = document.getElementById('level-complete-screen');
+        const startButton = document.getElementById('start-button');
+        const nextLevelButton = document.getElementById('next-level-button');
+        const instructionText = document.getElementById('instruction-text');
+        
+        // 遊戲狀態
+        let currentLevel = 0;
+
+        // 關卡內容元素
+        const levelContent = {
+            '1-1': document.getElementById('level-1-1'),
+            '1-2': document.getElementById('level-1-2'),
+            '2-1': document.getElementById('level-2-1'),
+        };
+
+        const levelData = [
+            { // 關卡 1-1
+                instruction: '天黑了！用你的手指「點擊」，點亮這些螢火蟲！',
+                setup: setupLevel1_1,
+                cleanup: cleanupLevel1_1,
+                completeTitle: '手勢魔法師！',
+                completeMessage: '你學會了「點擊」魔法！',
+            },
+            { // 關卡 1-2
+                instruction: '我們來種花吧！請把種子「拖曳」到花盆裡。',
+                setup: setupLevel1_2,
+                cleanup: cleanupLevel1_2,
+                completeTitle: '綠手指！',
+                completeMessage: '你學會了「拖曳」魔法！',
+            },
+            { // 關卡 2-1
+                instruction: '魔法需要黃色能量！請用相機對準你身邊「黃色」的東西！',
+                setup: setupLevel2_1,
+                cleanup: cleanupLevel2_1,
+                completeTitle: '真實之眼！',
+                completeMessage: '你成功收集了顏色能量！',
+            },
+            { // 結束畫面
+                instruction: '恭喜你，所有挑戰都完成了！你是最棒的魔法學徒！',
+                setup: () => {},
+                cleanup: () => {},
+            }
+        ];
+
+        startButton.addEventListener('click', () => {
+            startScreen.classList.add('hidden');
+            gameMainScreen.classList.remove('hidden');
+            gameMainScreen.classList.add('flex');
+            loadLevel(currentLevel);
+        });
+
+        nextLevelButton.addEventListener('click', () => {
+            currentLevel++;
+            levelCompleteScreen.classList.add('hidden');
+            if (currentLevel < levelData.length-1) {
+                gameMainScreen.classList.remove('hidden');
+                gameMainScreen.classList.add('flex');
+                loadLevel(currentLevel);
+            } else {
+                // 遊戲結束
+                gameMainScreen.classList.remove('hidden');
+                gameMainScreen.classList.add('flex');
+                instructionText.textContent = levelData[currentLevel].instruction;
+                Object.values(levelContent).forEach(el => el.classList.add('hidden'));
+                levelCompleteScreen.querySelector('#complete-title').textContent = '恭喜通關！';
+                levelCompleteScreen.querySelector('#complete-message').textContent = '你已完成所有學習！';
+                levelCompleteScreen.querySelector('#next-level-button').textContent = '重新開始';
+                levelCompleteScreen.classList.remove('hidden');
+                levelCompleteScreen.classList.add('flex');
+                currentLevel = -1; //下次點擊重新開始
+            }
+        });
+
+        function loadLevel(levelIndex) {
+            // 清理上一關
+            if (levelIndex > 0) {
+                levelData[levelIndex - 1].cleanup();
+            }
+            Object.values(levelContent).forEach(el => el.classList.add('hidden'));
+
+            // 設定目前關卡
+            instructionText.textContent = levelData[levelIndex].instruction;
+            levelData[levelIndex].setup();
+        }
+
+        function completeLevel(levelIndex) {
+            gameMainScreen.classList.add('hidden');
+            levelCompleteScreen.classList.remove('hidden');
+            levelCompleteScreen.classList.add('flex');
+            levelCompleteScreen.querySelector('#complete-title').textContent = levelData[levelIndex].completeTitle;
+            levelCompleteScreen.querySelector('#complete-message').textContent = levelData[levelIndex].completeMessage;
+            levelCompleteScreen.querySelector('#next-level-button').textContent = '下一關';
+        }
+
+        // --- 關卡 1-1: 點點螢火蟲 ---
+        let fireflies = [];
+        let litCount = 0;
+        const fireflyCount = 8;
+        
+        function setupLevel1_1() {
+            const container = levelContent['1-1'];
+            container.classList.remove('hidden');
+            litCount = 0;
+            for (let i = 0; i < fireflyCount; i++) {
+                const firefly = document.createElement('div');
+                firefly.className = 'firefly';
+                firefly.style.top = `${Math.random() * 80 + 10}%`;
+                firefly.style.left = `${Math.random() * 80 + 10}%`;
+                firefly.addEventListener('click', () => {
+                    if (!firefly.classList.contains('lit')) {
+                        firefly.classList.add('lit');
+                        litCount++;
+                        if (litCount === fireflyCount) {
+                            setTimeout(() => completeLevel(0), 500);
+                        }
+                    }
+                });
+                container.appendChild(firefly);
+                fireflies.push(firefly);
+            }
+        }
+
+        function cleanupLevel1_1() {
+            fireflies.forEach(f => f.remove());
+            fireflies = [];
+        }
+
+        // --- 關卡 1-2: 幫小種子回家 (已更新) ---
+        const seed = document.getElementById('seed');
+        const flowerPot = document.getElementById('flower-pot');
+        const flower = document.getElementById('flower');
+
+        // 為了觸控和滑鼠拖曳新增的變數
+        let originalSeedPos = { x: 0, y: 0 };
+        let offsetX = 0, offsetY = 0;
+
+        function setupLevel1_2() {
+            levelContent['1-2'].classList.remove('hidden');
+            // 統一監聽滑鼠和觸控事件
+            seed.addEventListener('mousedown', mouseDown);
+            seed.addEventListener('touchstart', touchStart, { passive: false });
+        }
+        
+        function cleanupLevel1_2() {
+            // 移除所有監聽器
+            seed.removeEventListener('mousedown', mouseDown);
+            document.removeEventListener('mousemove', mouseMove);
+            document.removeEventListener('mouseup', mouseUp);
+            
+            seed.removeEventListener('touchstart', touchStart);
+            document.removeEventListener('touchmove', touchMove);
+            document.removeEventListener('touchend', touchEnd);
+
+            flower.classList.remove('grown');
+            // 還原種子樣式
+            seed.style.position = '';
+            seed.style.left = '';
+            seed.style.top = '';
+            seed.style.opacity = '1';
+        }
+
+        // --- 滑鼠拖曳函式 ---
+        function mouseDown(e) {
+            e.preventDefault();
+            
+            originalSeedPos = seed.getBoundingClientRect();
+            offsetX = e.clientX - originalSeedPos.left;
+            offsetY = e.clientY - originalSeedPos.top;
+
+            seed.style.position = 'fixed';
+            seed.style.left = `${e.clientX - offsetX}px`;
+            seed.style.top = `${e.clientY - offsetY}px`;
+
+            document.addEventListener('mousemove', mouseMove);
+            document.addEventListener('mouseup', mouseUp);
+        }
+
+        function mouseMove(e) {
+            e.preventDefault();
+            seed.style.left = `${e.clientX - offsetX}px`;
+            seed.style.top = `${e.clientY - offsetY}px`;
+
+            if (isOverElement(seed, flowerPot)) {
+                flowerPot.classList.add('hovered');
+            } else {
+                flowerPot.classList.remove('hovered');
+            }
+        }
+
+        function mouseUp(e) {
+            document.removeEventListener('mousemove', mouseMove);
+            document.removeEventListener('mouseup', mouseUp);
+            flowerPot.classList.remove('hovered');
+
+            if (isOverElement(seed, flowerPot)) {
+                handleSuccessfulDrop();
+            } else {
+                // 沒成功，種子回到原位
+                seed.style.position = '';
+                seed.style.left = '';
+                seed.style.top = '';
+            }
+        }
+
+        // --- 觸控拖曳函式 ---
+        function touchStart(e) {
+            e.preventDefault();
+            
+            originalSeedPos = seed.getBoundingClientRect();
+            const touch = e.touches[0];
+            offsetX = touch.clientX - originalSeedPos.left;
+            offsetY = touch.clientY - originalSeedPos.top;
+
+            seed.style.position = 'fixed'; // 使用 fixed 讓種子可以全螢幕拖曳
+            seed.style.left = `${touch.clientX - offsetX}px`;
+            seed.style.top = `${touch.clientY - offsetY}px`;
+
+            document.addEventListener('touchmove', touchMove, { passive: false });
+            document.addEventListener('touchend', touchEnd);
+        }
+
+        function touchMove(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            seed.style.left = `${touch.clientX - offsetX}px`;
+            seed.style.top = `${touch.clientY - offsetY}px`;
+
+            if (isOverElement(seed, flowerPot)) {
+                flowerPot.classList.add('hovered');
+            } else {
+                flowerPot.classList.remove('hovered');
+            }
+        }
+
+        function touchEnd(e) {
+            document.removeEventListener('touchmove', touchMove);
+            document.removeEventListener('touchend', touchEnd);
+            flowerPot.classList.remove('hovered');
+
+            if (isOverElement(seed, flowerPot)) {
+                handleSuccessfulDrop();
+            } else {
+                // 沒成功，種子回到原位
+                seed.style.position = '';
+                seed.style.left = '';
+                seed.style.top = '';
+            }
+        }
+
+        function isOverElement(el1, el2) {
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            return !(
+                rect1.right < rect2.left ||
+                rect1.left > rect2.right ||
+                rect1.bottom < rect2.top ||
+                rect1.top > rect2.bottom
+            );
+        }
+        
+        function handleSuccessfulDrop() {
+            seed.style.opacity = '0'; // 隱藏種子而不是移除，方便重置
+            flower.classList.add('grown');
+            setTimeout(() => {
+                completeLevel(1);
+                 // 關卡完成後，重置種子狀態以便下一輪遊戲
+                seed.style.position = '';
+                seed.style.left = '';
+                seed.style.top = '';
+                seed.style.opacity = '1';
+            }, 1500);
+        }
+
+        // --- 關卡 2-1: 尋找黃色能量 ---
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const progressBar = document.getElementById('color-progress-bar');
+        const permissionButton = document.getElementById('camera-permission-button');
+        const cameraError = document.getElementById('camera-error');
+        let stream;
+        let detectionInterval;
+
+        function setupLevel2_1() {
+            levelContent['2-1'].classList.remove('hidden');
+            progressBar.style.width = '0%';
+            startCamera();
+        }
+
+        function cleanupLevel2_1() {
+            stopCamera();
+        }
+        
+        permissionButton.addEventListener('click', startCamera);
+
+        async function startCamera() {
+            permissionButton.classList.add('hidden');
+            cameraError.classList.add('hidden');
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'user' } // 'user'是前置鏡頭, 'environment'是後置
+                    });
+                    video.srcObject = stream;
+                    video.onloadedmetadata = () => {
+                       detectionInterval = setInterval(detectYellow, 200);
+                    };
+                }
+            } catch (err) {
+                console.error("相機錯誤:", err);
+                cameraError.classList.remove('hidden');
+                permissionButton.classList.remove('hidden');
+            }
+        }
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            clearInterval(detectionInterval);
+        }
+        
+        function detectYellow() {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // 只分析中心一小塊區域，提高效率
+            const sampleSize = 100;
+            const sx = canvas.width / 2 - sampleSize / 2;
+            const sy = canvas.height / 2 - sampleSize / 2;
+            
+            const imageData = ctx.getImageData(sx, sy, sampleSize, sampleSize).data;
+            let yellowCount = 0;
+            
+            for (let i = 0; i < imageData.length; i += 4) {
+                const r = imageData[i];
+                const g = imageData[i + 1];
+                const b = imageData[i + 2];
+                // 判斷黃色的條件：R和G值高，B值低
+                if (r > 150 && g > 150 && b < 100) {
+                    yellowCount++;
+                }
+            }
+            
+            const percentage = Math.min(100, (yellowCount / (sampleSize * sampleSize)) * 200); // 乘以一個倍數讓效果更明顯
+            progressBar.style.width = `${percentage}%`;
+            
+            if (percentage >= 100) {
+                setTimeout(() => completeLevel(2), 500);
+            }
+        }
+    </script>
+</body>
+</html>
+
